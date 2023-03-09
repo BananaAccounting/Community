@@ -1,4 +1,4 @@
-# Community
+# BananaAccounting Community
 Repository for BananaAccounting Community
 
 ## Useful resources
