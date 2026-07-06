@@ -1,8 +1,14 @@
-*.bak
-*.autosave
 *.DS_Store
 *.test.diff.txt
 **/test/testresults
+*.bak
+*.autosave
+_*.*
+~*
+build-*
 **/build-*/
-*.user
+**/build/
+**/.vscode/
 ~$*
+**/.vscode/
+*.user
