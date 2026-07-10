@@ -17,7 +17,7 @@ METHODE CUMP MOBILE
 ========================================================
 */
 
-var STOCK_METHOD = "CUMP MOBILE";
+var STOCK_METHOD = "CUMP APRES CHAQUE ENTREE";
 
 function exec() {
 
@@ -34,9 +34,9 @@ function exec() {
 }
 
 /*
-========================================================
-CREATION RAPPORT
-========================================================
+==================================================
+REPORT
+==================================================
 */
 
 function createReport(doc) {
@@ -60,17 +60,11 @@ function createReport(doc) {
 
 /*
 ==================================================
-HEADER DYNAMIQUE COMPLET BANANA
+HEADER PREMIUM OHADA
 ==================================================
 */
 
 function addHeader(report) {
-
-    /*
-    ==========================================
-    DONNEES BASE FICHIER
-    ==========================================
-    */
 
     var company =
         Banana.document.info(
@@ -89,12 +83,6 @@ function addHeader(report) {
             "Base",
             "HeaderRight"
         );
-
-    /*
-    ==========================================
-    DONNEES ADRESSE
-    ==========================================
-    */
 
     var courtesy =
         Banana.document.info(
@@ -150,24 +138,18 @@ function addHeader(report) {
             "Web"
         );
 
-    /*
-    ==========================================
-    VALEURS PAR DEFAUT
-    ==========================================
-    */
-
     if (!company)
-        company = "KIKSOFT";
+        company = "KIKSOFT ERP";
 
     if (!headerLeft)
         headerLeft = company;
 
     if (!headerRight)
-        headerRight = "STOCK OHADA";
+        headerRight = "MAGASIN / DEPOT";
 
     /*
     ==========================================
-    TABLE HEADER
+    HEADER TABLE
     ==========================================
     */
 
@@ -179,7 +161,7 @@ function addHeader(report) {
 
     /*
     ==========================================
-    COLONNE GAUCHE
+    GAUCHE
     ==========================================
     */
 
@@ -189,6 +171,12 @@ function addHeader(report) {
 
     if (courtesy)
         leftText += "\n" + courtesy;
+
+    if (address1)
+        leftText += "\n" + address1;
+
+    if (address2)
+        leftText += "\n" + address2;
 
     if (phone)
         leftText += "\nTél : " + phone;
@@ -203,36 +191,32 @@ function addHeader(report) {
 
     /*
     ==========================================
-    COLONNE CENTRALE
+    CENTRE
     ==========================================
     */
 
     row.addCell(
 
-        "RAPPORT DE STOCK OHADA\n" +
+        "FICHE DE STOCK\n" +
 
-        "METHODE CUMP\n" +
+        "CONFORME AUX NORMES OHADA\n" +
 
-        "Après chaque entrée",
+        "Méthode : " + STOCK_METHOD +
+
+        "\nDevise : FCFA",
 
         "title"
     );
 
     /*
     ==========================================
-    COLONNE DROITE
+    DROITE
     ==========================================
     */
 
     var rightText = "";
 
     rightText += headerRight;
-
-    if (address1)
-        rightText += "\n" + address1;
-
-    if (address2)
-        rightText += "\n" + address2;
 
     if (city)
         rightText += "\n" + city;
@@ -247,23 +231,70 @@ function addHeader(report) {
         rightText += "\n" + web;
 
     rightText +=
-        "\nMéthode : CUMP Mobile";
-
-    rightText +=
-        "\nDevise : FCFA";
+        "\nDate Impression : " +
+        Banana.Converter.toLocaleDateFormat(
+            new Date()
+        );
 
     row.addCell(
         rightText,
         "info"
     );
 
+    /*
+    ==========================================
+    INFOS ARTICLE
+    ==========================================
+    */
+
+    report.addParagraph(" ");
+
+    var infoTable =
+        report.addTable(
+            "infoTable"
+        );
+
+    var r1 = infoTable.addRow();
+
+    r1.addCell(
+        "DESIGNATION ARTICLE : ______________________________",
+        "infoBox"
+    );
+
+    r1.addCell(
+        "UNITE : __________________",
+        "infoBox"
+    );
+
+    r1.addCell(
+        "MAGASIN : __________________",
+        "infoBox"
+    );
+
+    var r2 = infoTable.addRow();
+
+    r2.addCell(
+        "CODE ARTICLE : ______________________________",
+        "infoBox"
+    );
+
+    r2.addCell(
+        "METHODE : " + STOCK_METHOD,
+        "infoBox"
+    );
+
+    r2.addCell(
+        "PAGE : ____ / ____",
+        "infoBox"
+    );
+
     report.addParagraph(" ");
 }
 
 /*
-========================================================
-CALCUL DONNEES CUMP MOBILE
-========================================================
+==================================================
+CALCUL CUMP APRES CHAQUE ENTREE
+==================================================
 */
 
 function calculateData(doc) {
@@ -277,25 +308,13 @@ function calculateData(doc) {
 
     var result = [];
 
-    /*
-    =================================================
-    VARIABLES STOCK
-    =================================================
-    */
-
     var stockQty = 0;
     var stockValue = 0;
-    var avgCost = 0;
+    var cump = 0;
 
     for (var i = 0; i < rows.length; i++) {
 
         var row = rows[i];
-
-        /*
-        =================================================
-        RECUPERATION FLEXIBLE DES COLONNES BANANA
-        =================================================
-        */
 
         var date =
             row.value("Date");
@@ -303,14 +322,7 @@ function calculateData(doc) {
         var description =
             row.value("Libellé") ||
             row.value("Description") ||
-            row.value("Descrizione") ||
             "";
-
-        /*
-        -------------------------------------------------
-        QUANTITE ENTREE
-        -------------------------------------------------
-        */
 
         var qtyIn = parseFloat(
 
@@ -325,12 +337,6 @@ function calculateData(doc) {
             0
         );
 
-        /*
-        -------------------------------------------------
-        QUANTITE SORTIE
-        -------------------------------------------------
-        */
-
         var qtyOut = parseFloat(
 
             row.value("Quant Minus") ||
@@ -343,12 +349,6 @@ function calculateData(doc) {
 
             0
         );
-
-        /*
-        -------------------------------------------------
-        PRIX UNITAIRE
-        -------------------------------------------------
-        */
 
         var unitPrice = parseFloat(
 
@@ -364,235 +364,338 @@ function calculateData(doc) {
         );
 
         /*
-        =================================================
-        VARIABLES MOUVEMENT
-        =================================================
-        */
-
-        var entryQty = 0;
-        var entryPU = 0;
-        var entryTotal = 0;
-
-        var exitQty = 0;
-        var exitPU = 0;
-        var exitTotal = 0;
-
-        /*
-        =================================================
-        ENTREES
-        =================================================
+        ==========================================
+        ENTREE
+        ==========================================
         */
 
         if (qtyIn > 0) {
 
-            entryQty = qtyIn;
-
-            entryPU = unitPrice;
-
-            entryTotal =
+            var entryTotal =
                 qtyIn * unitPrice;
-
-            /*
-            =============================================
-            MISE A JOUR STOCK
-            =============================================
-            */
-
-            stockQty += qtyIn;
 
             stockValue += entryTotal;
 
-            /*
-            =============================================
-            NOUVEAU CUMP APRES ENTREE
-            =============================================
-            */
+            stockQty += qtyIn;
 
             if (stockQty > 0) {
 
-                avgCost =
+                cump =
                     stockValue / stockQty;
             }
+
+            result.push({
+
+                date: date,
+
+                label: description,
+
+                lot: "CUMP",
+
+                entryQty: qtyIn,
+
+                entryPU: unitPrice,
+
+                entryTotal: entryTotal,
+
+                exitQty: 0,
+
+                exitPU: 0,
+
+                exitTotal: 0,
+
+                stockQty: stockQty,
+
+                stockPU: cump,
+
+                stockValue: stockValue
+            });
         }
 
         /*
-        =================================================
-        SORTIES
-        =================================================
+        ==========================================
+        SORTIE
+        ==========================================
         */
 
         if (qtyOut > 0) {
 
-            exitQty = qtyOut;
+            var exitTotal =
+                qtyOut * cump;
 
-            /*
-            =============================================
-            SORTIE AU CUMP COURANT
-            =============================================
-            */
-
-            exitPU = avgCost;
-
-            exitTotal =
-                exitQty * exitPU;
-
-            /*
-            =============================================
-            MISE A JOUR STOCK
-            =============================================
-            */
-
-            stockQty -= exitQty;
+            stockQty -= qtyOut;
 
             stockValue -= exitTotal;
 
-            /*
-            =============================================
-            RECALCUL CUMP
-            =============================================
-            */
+            if (stockQty <= 0) {
 
-            if (stockQty > 0) {
-
-                avgCost =
-                    stockValue / stockQty;
+                stockQty = 0;
+                stockValue = 0;
+                cump = 0;
             }
-            else {
 
-                avgCost = 0;
-            }
+            result.push({
+
+                date: date,
+
+                label: description,
+
+                lot: "CUMP",
+
+                entryQty: 0,
+
+                entryPU: 0,
+
+                entryTotal: 0,
+
+                exitQty: qtyOut,
+
+                exitPU: cump,
+
+                exitTotal: exitTotal,
+
+                stockQty: stockQty,
+
+                stockPU: cump,
+
+                stockValue: stockValue
+            });
         }
-
-        /*
-        =================================================
-        AJOUT RESULTAT
-        =================================================
-        */
-
-        result.push({
-
-            date: date,
-
-            label: description,
-
-            entryQty: entryQty,
-            entryPU: entryPU,
-            entryTotal: entryTotal,
-
-            exitQty: exitQty,
-            exitPU: exitPU,
-            exitTotal: exitTotal,
-
-            stockQty: stockQty,
-            avgCost: avgCost,
-            stockValue: stockValue
-        });
     }
 
     return result;
 }
 
 /*
-========================================================
-TABLEAU PRINCIPAL
-========================================================
+==================================================
+TABLEAU PREMIUM OHADA
+==================================================
 */
 
 function addMainTable(report, data) {
 
     var table = report.addTable("mainTable");
 
+    /*
+    ==============================================
+    ENTETE PRINCIPALE
+    ==============================================
+    */
+
     var row1 = table.addRow();
 
-    row1.addCell("Date", "th");
-    row1.addCell("Libellé", "th");
+    row1.addCell("DATE", "th");
+    row1.addCell("LIBELLE", "th");
+    row1.addCell("LOT", "th");
 
-    row1.addCell("ENTREE\nQté", "th");
-    row1.addCell("CU", "th");
-    row1.addCell("Total", "th");
+    row1.addCell("ENTREES", "thGroup", 3);
+    row1.addCell("SORTIES", "thGroup", 3);
+    row1.addCell("STOCK", "thGroup", 3);
 
-    row1.addCell("SORTIE\nQté", "th");
-    row1.addCell("CU", "th");
-    row1.addCell("Total", "th");
+    /*
+    ==============================================
+    SOUS ENTETE
+    ==============================================
+    */
 
-    row1.addCell("STOCK\nQté", "th");
-    row1.addCell("CU Moyen", "th");
-    row1.addCell("Valeur", "th");
+    var row2 = table.addRow();
+
+    row2.addCell("", "thSpacer");
+    row2.addCell("", "thSpacer");
+    row2.addCell("", "thSpacer");
+
+    /*
+    ----------------------------------------------
+    ENTREES
+    ----------------------------------------------
+    */
+
+    row2.addCell("Qté", "th2");
+    row2.addCell("PU", "th2");
+    row2.addCell("Montant", "th2");
+
+    /*
+    ----------------------------------------------
+    SORTIES
+    ----------------------------------------------
+    */
+
+    row2.addCell("Qté", "th2");
+    row2.addCell("CU Stock", "th2");
+    row2.addCell("Valeur", "th2");
+
+    /*
+    ----------------------------------------------
+    STOCK
+    ----------------------------------------------
+    */
+
+    row2.addCell("Qté", "th2");
+    row2.addCell("CU", "th2");
+    row2.addCell("Valeur", "th2");
+
+    /*
+    ==============================================
+    DONNEES
+    ==============================================
+    */
 
     var totalEntry = 0;
     var totalExit = 0;
-    var finalValue = 0;
 
     for (var i = 0; i < data.length; i++) {
 
         var d = data[i];
 
-        var row = table.addRow();
+        var r = table.addRow();
 
-        row.addCell(d.date, "td");
-        row.addCell(d.label, "td");
+        var rowStyle = "td";
 
-        row.addCell(format(d.entryQty), "tdn");
-        row.addCell(format(d.entryPU), "tdn");
-        row.addCell(format(d.entryTotal), "tdn");
+        if (d.exitQty > 0)
+            rowStyle = "tdOut";
 
-        row.addCell(format(d.exitQty), "tdn");
-        row.addCell(format(d.exitPU), "tdn");
-        row.addCell(format(d.exitTotal), "tdn");
+        if (d.entryQty > 0)
+            rowStyle = "tdIn";
 
-        row.addCell(format(d.stockQty), "tdn");
-        row.addCell(format(d.avgCost), "tdn");
-        row.addCell(format(d.stockValue), "tdn");
+        /*
+        ----------------------------------------------
+        INFOS
+        ----------------------------------------------
+        */
+
+        r.addCell(d.date, rowStyle);
+        r.addCell(d.label, rowStyle);
+        r.addCell(d.lot, rowStyle);
+
+        /*
+        ----------------------------------------------
+        ENTREES
+        ----------------------------------------------
+        */
+
+        r.addCell(format(d.entryQty), "tdn");
+        r.addCell(format(d.entryPU), "tdn");
+        r.addCell(format(d.entryTotal), "tdn");
+
+        /*
+        ----------------------------------------------
+        SORTIES
+        ----------------------------------------------
+        */
+
+        r.addCell(format(d.exitQty), "tdn");
+
+        r.addCell(
+            d.exitPU > 0
+            ? format(d.exitPU)
+            : "",
+            "tdn"
+        );
+
+        r.addCell(format(d.exitTotal), "tdn");
+
+        /*
+        ----------------------------------------------
+        STOCK
+        ----------------------------------------------
+        */
+
+        r.addCell(format(d.stockQty), "tdn");
+
+        r.addCell(
+            d.stockPU > 0
+            ? format(d.stockPU)
+            : "",
+            "tdn"
+        );
+
+        r.addCell(
+            format(d.stockValue),
+            "tdn"
+        );
 
         totalEntry += d.entryTotal;
         totalExit += d.exitTotal;
-        finalValue = d.stockValue;
     }
 
     /*
-    ================================================
-    TOTAL GENERAL
-    ================================================
+    ==============================================
+    STOCK FINAL
+    ==============================================
     */
 
-    var totalRow = table.addRow();
+    var finalStockQty = 0;
+    var finalStockValue = 0;
 
-    totalRow.addCell(
-        "TOTAL GENERAL",
-        "total"
-    );
+    if (data.length > 0) {
 
-    totalRow.addCell("", "total");
+        var last =
+            data[data.length - 1];
 
-    totalRow.addCell("", "total");
-    totalRow.addCell("", "total");
+        finalStockQty =
+            last.stockQty;
 
-    totalRow.addCell(
-        format(totalEntry),
-        "total"
-    );
+        finalStockValue =
+            last.stockValue;
+    }
 
-    totalRow.addCell("", "total");
-    totalRow.addCell("", "total");
+    /*
+    ==============================================
+    LIGNE TOTAL
+    ==============================================
+    */
 
-    totalRow.addCell(
-        format(totalExit),
-        "total"
-    );
+    var finalStockPU = "";
 
-    totalRow.addCell("", "total");
-    totalRow.addCell("", "total");
+for (var i = data.length - 1; i >= 0; i--) {
 
-    totalRow.addCell(
-        format(finalValue),
-        "total"
-    );
+    if (data[i].stockQty > 0) {
+        finalStockPU = data[i].stockPU;
+        break;
+    }
+}
+
+   var totalRow = table.addRow();
+
+totalRow.addCell("TOTAL GENERAL", "total");
+
+totalRow.addCell("", "total");
+totalRow.addCell("", "total");
+
+/* ENTREES */
+
+totalRow.addCell("", "total");
+totalRow.addCell("", "total");
+totalRow.addCell("", "total");     // <- vide
+
+/* SORTIES */
+
+totalRow.addCell("", "total");
+totalRow.addCell("", "total");
+totalRow.addCell("", "total");     // <- vide
+
+/* STOCK */
+
+totalRow.addCell(
+    format(finalStockQty),
+    "total"
+);
+
+totalRow.addCell(
+    format(finalStockPU),
+    "total"
+);
+
+totalRow.addCell(
+    format(finalStockValue),
+    "total"
+);
 }
 
 /*
-========================================================
+==================================================
 RESUME
-========================================================
+==================================================
 */
 
 function addSummary(report, data) {
@@ -600,9 +703,16 @@ function addSummary(report, data) {
     if (data.length <= 0)
         return;
 
-    var last = data[data.length - 1];
+    var last =
+        data[data.length - 1];
 
-    report.addParagraph(" ", "normal");
+    var finalStockQty =
+        last.stockQty;
+
+    var finalStockValue =
+        last.stockValue;
+
+    report.addParagraph(" ");
 
     report.addParagraph(
         "RÉSUMÉ GÉNÉRAL",
@@ -611,139 +721,236 @@ function addSummary(report, data) {
 
     report.addParagraph(
         "Stock Final Quantité : " +
-        format(last.stockQty),
+        format(finalStockQty),
         "summary"
     );
 
     report.addParagraph(
         "Valeur Finale Stock : " +
-        format(last.stockValue),
+        format(finalStockValue) +
+        " FCFA",
         "summary"
     );
 }
 
 /*
-========================================================
-PIED DE PAGE
-========================================================
+==================================================
+FOOTER
+==================================================
 */
 
 function addFooter(report) {
 
-    report.addParagraph(" ", "normal");
+    report.addParagraph(" ");
 
-    report.addParagraph(
-        "Méthode appliquée : " +
-        STOCK_METHOD,
-        "footer"
+    var footer =
+        report.addTable(
+            "footerTable"
+        );
+
+    var row = footer.addRow();
+
+    row.addCell(
+        "ÉTABLI PAR :\n\n\n_____________________",
+        "footerCell"
     );
 
-    report.addParagraph(
-        "Rapport conforme aux normes OHADA",
-        "footer"
+    row.addCell(
+        "VÉRIFIÉ PAR :\n\n\n_____________________",
+        "footerCell"
+    );
+
+    row.addCell(
+        "APPROUVÉ PAR :\n\n\n_____________________",
+        "footerCell"
     );
 }
 
 /*
-========================================================
-FORMATAGE
-========================================================
+==================================================
+FORMAT
+==================================================
 */
 
-function format(value) {
+function format(v) {
 
     return Banana.Converter.toLocaleNumberFormat(
-        Number(value).toFixed(2)
+        Number(v).toFixed(2)
     );
 }
 
 /*
-========================================================
-STYLE SHEET
-========================================================
+==================================================
+STYLE PREMIUM OHADA
+==================================================
 */
 
 function createStyleSheet() {
 
-    var stylesheet = Banana.Report.newStyleSheet();
+    var s = Banana.Report.newStyleSheet();
 
-    stylesheet.addStyle(
-        ".mainTable",
-        "width:100%; font-size:9pt;"
+    /*
+    ==============================================
+    PAGE
+    ==============================================
+    */
+
+    s.addStyle(
+        "body",
+        "font-family: Helvetica; font-size:9pt; color:#1f2937;"
     );
 
-    stylesheet.addStyle(
-        ".mainTable td",
-        "border:1px solid black; padding:4px;"
-    );
+    /*
+    ==============================================
+    HEADER
+    ==============================================
+    */
 
-    stylesheet.addStyle(
-        ".mainTable th",
-        "border:1px solid black;" +
-        "background-color:#d9e1f2;" +
-        "font-weight:bold;" +
-        "text-align:center;" +
-        "padding:4px;"
-    );
-
-    stylesheet.addStyle(
-        ".td",
-        "border:1px solid black;"
-    );
-
-    stylesheet.addStyle(
-        ".tdn",
-        "border:1px solid black; text-align:right;"
-    );
-
-    stylesheet.addStyle(
-        ".total",
-        "border:1px solid black;" +
-        "font-weight:bold;" +
-        "background-color:#eeeeee;"
-    );
-
-    stylesheet.addStyle(
+    s.addStyle(
         ".headerTable",
-        "width:100%; border:1px solid black;"
+        "width:100%; border:1px solid #1e3a5f; margin-bottom:10px;"
     );
 
-    stylesheet.addStyle(
+    s.addStyle(
         ".headerTable td",
-        "border:1px solid black; padding:8px;"
+        "border:1px solid #1e3a5f; padding:10px; vertical-align:top;"
     );
 
-    stylesheet.addStyle(
+    s.addStyle(
         ".logo",
-        "font-size:16pt; font-weight:bold;"
+        "font-size:12pt; font-weight:bold; color:#1e3a5f;"
     );
 
-    stylesheet.addStyle(
+    s.addStyle(
         ".title",
-        "font-size:18pt;" +
-        "font-weight:bold;" +
-        "text-align:center;"
+        "font-size:18pt; font-weight:bold; text-align:center; color:#1e3a5f;"
     );
 
-    stylesheet.addStyle(
+    s.addStyle(
         ".info",
-        "font-size:10pt;"
+        "font-size:9pt; color:#374151;"
     );
 
-    stylesheet.addStyle(
+    /*
+    ==============================================
+    INFO ARTICLE
+    ==============================================
+    */
+
+    s.addStyle(
+        ".infoTable",
+        "width:100%; margin-bottom:12px;"
+    );
+
+    s.addStyle(
+        ".infoBox",
+        "border:1px solid #9ca3af; padding:8px; font-weight:bold; background-color:#f9fafb;"
+    );
+
+    /*
+    ==============================================
+    TABLEAU
+    ==============================================
+    */
+
+    s.addStyle(
+        ".mainTable",
+        "width:100%; font-size:8.5pt; border:1px solid #1e3a5f;"
+    );
+
+    s.addStyle(
+        ".mainTable td",
+        "border:1px solid #cbd5e1; padding:5px;"
+    );
+
+    s.addStyle(
+        ".th",
+        "background-color:#0f2d52; color:white; font-weight:bold; text-align:center; padding:7px;"
+    );
+
+    s.addStyle(
+        ".thGroup",
+        "background-color:#0f2d52; color:white; font-weight:bold; text-align:center; padding:7px;"
+    );
+
+    s.addStyle(
+        ".th2",
+        "background-color:#d6a756; color:black; font-weight:bold; text-align:center;"
+    );
+
+    /*
+    ==============================================
+    SPACER ALIGNEMENT
+    ==============================================
+    */
+
+    s.addStyle(
+        ".thSpacer",
+        "background-color:#0f2d52; border-top:1px solid #0f2d52; border-left:1px solid #0f2d52; border-right:1px solid #0f2d52; border-bottom:1px solid #d6a756;"
+    );
+
+    /*
+    ==============================================
+    LIGNES
+    ==============================================
+    */
+
+    s.addStyle(
+        ".td",
+        "background-color:white;"
+    );
+
+    s.addStyle(
+        ".tdIn",
+        "background-color:#f0fdf4;"
+    );
+
+    s.addStyle(
+        ".tdOut",
+        "background-color:#fff7ed;"
+    );
+
+    s.addStyle(
+        ".tdn",
+        "text-align:right;"
+    );
+
+    s.addStyle(
+        ".total",
+        "font-weight:bold; background-color:#e5e7eb; border:1px solid #374151; padding:6px;"
+    );
+
+    /*
+    ==============================================
+    RESUME
+    ==============================================
+    */
+
+    s.addStyle(
         ".summaryTitle",
-        "font-size:14pt; font-weight:bold;"
+        "font-size:13pt; font-weight:bold; color:#0f2d52;"
     );
 
-    stylesheet.addStyle(
+    s.addStyle(
         ".summary",
-        "font-size:11pt;"
+        "font-size:10pt; font-weight:bold;"
     );
 
-    stylesheet.addStyle(
-        ".footer",
-        "font-size:9pt; font-style:italic;"
+    /*
+    ==============================================
+    FOOTER
+    ==============================================
+    */
+
+    s.addStyle(
+        ".footerTable",
+        "width:100%; margin-top:20px;"
     );
 
-    return stylesheet;
+    s.addStyle(
+        ".footerCell",
+        "border:1px solid #9ca3af; padding:12px; text-align:center; font-weight:bold;"
+    );
+
+    return s;
 }

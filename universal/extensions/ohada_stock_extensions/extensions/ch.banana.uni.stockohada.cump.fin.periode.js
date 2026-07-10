@@ -23,26 +23,8 @@ PARAMETRES
 ========================================================
 */
 
-var param = JSON.parse(
-    Banana.document.getScriptSettings() || "{}"
-);
+var STOCK_METHOD = "CUMP FIN DE PERIODE";
 
-var company =
-    param.company || "KIKSOFT ONLINE ACADEMY";
-
-var currency =
-    param.currency || "FCFA";
-
-var reportTitle =
-    param.reportTitle || "RAPPORT DE STOCK OHADA";
-
-var STOCK_METHOD = "CUMP FIN PERIODE";
-
-/*
-========================================================
-EXECUTION PRINCIPALE
-========================================================
-*/
 function exec() {
 
     var doc = Banana.document;
@@ -50,108 +32,17 @@ function exec() {
     if (!doc)
         return;
 
-    var param = JSON.parse(
-        Banana.document.getScriptSettings() || "{}"
-    );
-
-    company =
-        param.company || "KIKSOFT ONLINE ACADEMY";
-
-    currency =
-        param.currency || "FCFA";
-
-    reportTitle =
-        param.reportTitle || "RAPPORT DE STOCK OHADA";
-
     var report = createReport(doc);
 
     var stylesheet = createStyleSheet();
 
     Banana.Report.preview(report, stylesheet);
 }
-/*
-========================================================
-FENETRE PARAMETRES
-========================================================
-*/
-function settingsDialog() {
-
-    /*
-    ================================================
-    LIRE PARAMETRES ACTUELS
-    ================================================
-    */
-
-    var currentParam = JSON.parse(
-        Banana.document.getScriptSettings() || "{}"
-    );
-
-    /*
-    ================================================
-    NOM ENTREPRISE
-    ================================================
-    */
-
-    var companyInput = Banana.Ui.getText(
-        "Paramètres Rapport",
-        "Nom de l'entreprise",
-        currentParam.company || "KIKSOFT ONLINE ACADEMY"
-    );
-
-    if (companyInput === null)
-        return;
-
-    /*
-    ================================================
-    DEVISE
-    ================================================
-    */
-
-    var currencyInput = Banana.Ui.getText(
-        "Paramètres Rapport",
-        "Devise",
-        currentParam.currency || "FCFA"
-    );
-
-    if (currencyInput === null)
-        return;
-
-    /*
-    ================================================
-    TITRE RAPPORT
-    ================================================
-    */
-
-    var titleInput = Banana.Ui.getText(
-        "Paramètres Rapport",
-        "Titre du rapport",
-        currentParam.reportTitle || "RAPPORT DE STOCK OHADA"
-    );
-
-    if (titleInput === null)
-        return;
-
-    /*
-    ================================================
-    SAUVEGARDE
-    ================================================
-    */
-
-    var paramToSave = {
-        company: companyInput,
-        currency: currencyInput,
-        reportTitle: titleInput
-    };
-
-    Banana.document.setScriptSettings(
-        JSON.stringify(paramToSave)
-    );
-}
 
 /*
-========================================================
-CREATION RAPPORT
-========================================================
+==================================================
+REPORT
+==================================================
 */
 
 function createReport(doc) {
@@ -174,44 +65,242 @@ function createReport(doc) {
 }
 
 /*
-========================================================
-EN-TETE
-========================================================
+==================================================
+HEADER PREMIUM OHADA
+==================================================
 */
 
 function addHeader(report) {
 
-    var header = report.addTable("headerTable");
+    var company =
+        Banana.document.info(
+            "Base",
+            "Company"
+        );
+
+    var headerLeft =
+        Banana.document.info(
+            "Base",
+            "HeaderLeft"
+        );
+
+    var headerRight =
+        Banana.document.info(
+            "Base",
+            "HeaderRight"
+        );
+
+    var courtesy =
+        Banana.document.info(
+            "Address",
+            "Courtesy"
+        );
+
+    var address1 =
+        Banana.document.info(
+            "Address",
+            "Address1"
+        );
+
+    var address2 =
+        Banana.document.info(
+            "Address",
+            "Address2"
+        );
+
+    var city =
+        Banana.document.info(
+            "Address",
+            "Locality"
+        );
+
+    var region =
+        Banana.document.info(
+            "Address",
+            "Region"
+        );
+
+    var country =
+        Banana.document.info(
+            "Address",
+            "Country"
+        );
+
+    var phone =
+        Banana.document.info(
+            "Address",
+            "Phone"
+        );
+
+    var email =
+        Banana.document.info(
+            "Address",
+            "Email"
+        );
+
+    var web =
+        Banana.document.info(
+            "Address",
+            "Web"
+        );
+
+    if (!company)
+        company = "KIKSOFT ERP";
+
+    if (!headerLeft)
+        headerLeft = company;
+
+    if (!headerRight)
+        headerRight = "MAGASIN / DEPOT";
+
+    /*
+    ==========================================
+    HEADER TABLE
+    ==========================================
+    */
+
+    var header = report.addTable(
+        "headerTable"
+    );
 
     var row = header.addRow();
 
+    /*
+    ==========================================
+    GAUCHE
+    ==========================================
+    */
+
+    var leftText = "";
+
+    leftText += headerLeft;
+
+    if (courtesy)
+        leftText += "\n" + courtesy;
+
+    if (address1)
+        leftText += "\n" + address1;
+
+    if (address2)
+        leftText += "\n" + address2;
+
+    if (phone)
+        leftText += "\nTél : " + phone;
+
+    if (email)
+        leftText += "\nEmail : " + email;
+
     row.addCell(
-        company,
+        leftText,
         "logo"
     );
 
+    /*
+    ==========================================
+    CENTRE
+    ==========================================
+    */
+
     row.addCell(
-        reportTitle +
-        "\nMETHODE " + STOCK_METHOD +
-        "\nConforme aux normes OHADA",
+
+        "FICHE DE STOCK\n" +
+
+        "CONFORME AUX NORMES OHADA\n" +
+
+        "Méthode : " + STOCK_METHOD +
+
+        "\nDevise : FCFA",
+
         "title"
     );
 
+    /*
+    ==========================================
+    DROITE
+    ==========================================
+    */
+
+    var rightText = "";
+
+    rightText += headerRight;
+
+    if (city)
+        rightText += "\n" + city;
+
+    if (region)
+        rightText += "\n" + region;
+
+    if (country)
+        rightText += "\n" + country;
+
+    if (web)
+        rightText += "\n" + web;
+
+    rightText +=
+        "\nDate Impression : " +
+        Banana.Converter.toLocaleDateFormat(
+            new Date()
+        );
+
     row.addCell(
-        "Date : " +
-        Banana.Converter.toLocaleDateFormat(new Date()) +
-        "\nMéthode : " + STOCK_METHOD +
-        "\nDevise : " + currency,
+        rightText,
         "info"
     );
 
-    report.addParagraph(" ", "normal");
+    /*
+    ==========================================
+    INFOS ARTICLE
+    ==========================================
+    */
+
+    report.addParagraph(" ");
+
+    var infoTable =
+        report.addTable(
+            "infoTable"
+        );
+
+    var r1 = infoTable.addRow();
+
+    r1.addCell(
+        "DESIGNATION ARTICLE : ______________________________",
+        "infoBox"
+    );
+
+    r1.addCell(
+        "UNITE : __________________",
+        "infoBox"
+    );
+
+    r1.addCell(
+        "MAGASIN : __________________",
+        "infoBox"
+    );
+
+    var r2 = infoTable.addRow();
+
+    r2.addCell(
+        "CODE ARTICLE : ______________________________",
+        "infoBox"
+    );
+
+    r2.addCell(
+        "METHODE : " + STOCK_METHOD,
+        "infoBox"
+    );
+
+    r2.addCell(
+        "PAGE : ____ / ____",
+        "infoBox"
+    );
+
+    report.addParagraph(" ");
 }
 
 /*
-========================================================
-CALCUL DONNEES
-========================================================
+==================================================
+CALCUL CUMP FIN DE PERIODE
+==================================================
 */
 
 function calculateData(doc) {
@@ -226,61 +315,70 @@ function calculateData(doc) {
     var result = [];
 
     /*
-    =================================================
-    STOCK GLOBAL (CUMP FIN DE PERIODE)
-    =================================================
+    ==========================================
+    PRE-CALCUL CUMP FINAL
+    ==========================================
     */
 
-    var totalQty = 0;
-    var totalValue = 0;
-    var cump = 0;
-
-    /*
-    =================================================
-    PRE-CALCUL : CUMP FIN DE PERIODE
-    =================================================
-    */
+    var totalQtyIn = 0;
+    var totalValueIn = 0;
 
     for (var i = 0; i < rows.length; i++) {
 
         var row = rows[i];
 
         var qtyIn = parseFloat(
+
             row.value("Quant Plus") ||
+
             row.value("QuantityPlus") ||
+
             row.value("QtyPlus") ||
+
             row.value("In") ||
+
             0
         );
 
         var unitPrice = parseFloat(
+
             row.value("Prix Unitaire") ||
+
             row.value("UnitPrice") ||
+
             row.value("Price") ||
+
             row.value("PU") ||
+
             0
         );
 
         if (qtyIn > 0) {
-            totalQty += qtyIn;
-            totalValue += qtyIn * unitPrice;
+
+            totalQtyIn += qtyIn;
+
+            totalValueIn += qtyIn * unitPrice;
         }
     }
 
     /*
-    =================================================
+    ==========================================
     CUMP FINAL
-    =================================================
+    ==========================================
     */
 
-    if (totalQty > 0) {
-        cump = totalValue / totalQty;
+    var finalCUMP = 0;
+
+    if (totalQtyIn > 0) {
+
+        finalCUMP =
+            totalValueIn / totalQtyIn;
     }
 
     /*
-    =================================================
-    RELECTURE POUR AFFICHAGE
-    =================================================
+    ==========================================
+    TRAITEMENT DES MOUVEMENTS
+    ==========================================
     */
 
     var stockQty = 0;
@@ -290,7 +388,8 @@ function calculateData(doc) {
 
         var row = rows[i];
 
-        var date = row.value("Date");
+        var date =
+            row.value("Date");
 
         var description =
             row.value("Libellé") ||
@@ -298,103 +397,144 @@ function calculateData(doc) {
             "";
 
         var qtyIn = parseFloat(
+
             row.value("Quant Plus") ||
+
             row.value("QuantityPlus") ||
+
             row.value("QtyPlus") ||
+
             row.value("In") ||
+
             0
         );
 
         var qtyOut = parseFloat(
+
             row.value("Quant Minus") ||
+
             row.value("QuantityMinus") ||
+
             row.value("QtyMinus") ||
+
             row.value("Out") ||
+
             0
         );
 
-        var entryQty = 0;
-        var entryPU = 0;
-        var entryTotal = 0;
+        var unitPrice = parseFloat(
 
-        var exitQty = 0;
-        var exitPU = 0;
-        var exitTotal = 0;
+            row.value("Prix Unitaire") ||
+
+            row.value("UnitPrice") ||
+
+            row.value("Price") ||
+
+            row.value("PU") ||
+
+            0
+        );
 
         /*
-        =================================================
-        ENTREES
-        =================================================
+        ==========================================
+        ENTREE
+        ==========================================
         */
 
         if (qtyIn > 0) {
 
-            entryQty = qtyIn;
-
-            entryPU = parseFloat(
-                row.value("Prix Unitaire") ||
-                row.value("UnitPrice") ||
-                row.value("Price") ||
-                row.value("PU") ||
-                0
-            );
-
-            entryTotal = entryQty * entryPU;
+            var entryTotal =
+                qtyIn * unitPrice;
 
             stockQty += qtyIn;
+
             stockValue += entryTotal;
+
+            result.push({
+
+                date: date,
+
+                label: description,
+
+                lot: "CUMP",
+
+                entryQty: qtyIn,
+
+                entryPU: unitPrice,
+
+                entryTotal: entryTotal,
+
+                exitQty: 0,
+
+                exitPU: 0,
+
+                exitTotal: 0,
+
+                stockQty: stockQty,
+
+                stockPU: finalCUMP,
+
+                stockValue: stockQty * finalCUMP
+            });
         }
 
         /*
-        =================================================
-        SORTIES
-        =================================================
+        ==========================================
+        SORTIE
+        ==========================================
         */
 
         if (qtyOut > 0) {
 
-            exitQty = qtyOut;
-            exitPU = cump;
-            exitTotal = exitQty * cump;
+            var exitTotal =
+                qtyOut * finalCUMP;
 
-            stockQty -= exitQty;
+            stockQty -= qtyOut;
+
             stockValue -= exitTotal;
+
+            if (stockQty < 0)
+                stockQty = 0;
+
+            if (stockValue < 0)
+                stockValue = 0;
+
+            result.push({
+
+                date: date,
+
+                label: description,
+
+                lot: "CUMP",
+
+                entryQty: 0,
+
+                entryPU: 0,
+
+                entryTotal: 0,
+
+                exitQty: qtyOut,
+
+                exitPU: finalCUMP,
+
+                exitTotal: exitTotal,
+
+                stockQty: stockQty,
+
+                stockPU: finalCUMP,
+
+                stockValue: stockQty * finalCUMP
+            });
         }
-
-        /*
-        =================================================
-        STOCK
-        =================================================
-        */
-
-        var avgCost = cump;
-
-        result.push({
-
-            date: date,
-            label: description,
-
-            entryQty: entryQty,
-            entryPU: entryPU,
-            entryTotal: entryTotal,
-
-            exitQty: exitQty,
-            exitPU: exitPU,
-            exitTotal: exitTotal,
-
-            stockQty: stockQty,
-            avgCost: avgCost,
-            stockValue: stockQty * cump
-        });
     }
 
     return result;
 }
 
 /*
-========================================================
-TABLEAU PRINCIPAL
-========================================================
+==================================================
+TABLEAU PREMIUM OHADA
+==================================================
 */
 
 function addMainTable(report, data) {
@@ -402,108 +542,183 @@ function addMainTable(report, data) {
     var table = report.addTable("mainTable");
 
     /*
-    ================================================
-    EN-TETES
-    ================================================
+    ==============================================
+    ENTETE PRINCIPALE
+    ==============================================
     */
 
     var row1 = table.addRow();
 
-    row1.addCell("Date", "th");
-    row1.addCell("Libellé", "th");
+    row1.addCell("DATE", "th");
+    row1.addCell("LIBELLE", "th");
+    row1.addCell("LOT", "th");
 
-    row1.addCell("ENTREE\nQté", "th");
-    row1.addCell("CU", "th");
-    row1.addCell("Total", "th");
-
-    row1.addCell("SORTIE\nQté", "th");
-    row1.addCell("CU", "th");
-    row1.addCell("Total", "th");
-
-    row1.addCell("STOCK\nQté", "th");
-    row1.addCell("CU Moyen", "th");
-    row1.addCell("Valeur", "th");
+    row1.addCell("ENTREES", "thGroup", 3);
+    row1.addCell("SORTIES", "thGroup", 3);
+    row1.addCell("STOCK", "thGroup", 3);
 
     /*
-    ================================================
+    ==============================================
+    SOUS ENTETE
+    ==============================================
+    */
+
+    var row2 = table.addRow();
+
+    row2.addCell("", "thSpacer");
+    row2.addCell("", "thSpacer");
+    row2.addCell("", "thSpacer");
+
+    row2.addCell("Qté", "th2");
+    row2.addCell("PU", "th2");
+    row2.addCell("Montant", "th2");
+
+    row2.addCell("Qté", "th2");
+    row2.addCell("CU Stock", "th2");
+    row2.addCell("Valeur", "th2");
+
+    row2.addCell("Qté", "th2");
+    row2.addCell("CU", "th2");
+    row2.addCell("Valeur", "th2");
+
+    /*
+    ==============================================
     DONNEES
-    ================================================
+    ==============================================
     */
 
     var totalEntry = 0;
     var totalExit = 0;
-    var finalValue = 0;
 
     for (var i = 0; i < data.length; i++) {
 
         var d = data[i];
 
-        var row = table.addRow();
+        var r = table.addRow();
 
-        row.addCell(d.date, "td");
-        row.addCell(d.label, "td");
+        var rowStyle = "td";
 
-        row.addCell(format(d.entryQty), "tdn");
-        row.addCell(format(d.entryPU), "tdn");
-        row.addCell(format(d.entryTotal), "tdn");
+        if (d.exitQty > 0)
+            rowStyle = "tdOut";
 
-        row.addCell(format(d.exitQty), "tdn");
-        row.addCell(format(d.exitPU), "tdn");
-        row.addCell(format(d.exitTotal), "tdn");
+        if (d.entryQty > 0)
+            rowStyle = "tdIn";
 
-        row.addCell(format(d.stockQty), "tdn");
-        row.addCell(format(d.avgCost), "tdn");
-        row.addCell(format(d.stockValue), "tdn");
+        r.addCell(d.date, rowStyle);
+        r.addCell(d.label, rowStyle);
+        r.addCell(d.lot, rowStyle);
+
+        r.addCell(format(d.entryQty), "tdn");
+        r.addCell(format(d.entryPU), "tdn");
+        r.addCell(format(d.entryTotal), "tdn");
+
+        r.addCell(format(d.exitQty), "tdn");
+
+        r.addCell(
+            d.exitPU > 0
+            ? format(d.exitPU)
+            : "",
+            "tdn"
+        );
+
+        r.addCell(format(d.exitTotal), "tdn");
+
+        r.addCell(format(d.stockQty), "tdn");
+
+        r.addCell(
+            d.stockPU > 0
+            ? format(d.stockPU)
+            : "",
+            "tdn"
+        );
+
+        r.addCell(
+            format(d.stockValue),
+            "tdn"
+        );
 
         totalEntry += d.entryTotal;
         totalExit += d.exitTotal;
-        finalValue = d.stockValue;
     }
 
     /*
-    ================================================
-    TOTAL GENERAL
-    ================================================
+    ==============================================
+    STOCK FINAL
+    ==============================================
     */
 
-    var totalRow = table.addRow();
+    var finalStockQty = 0;
+    var finalStockValue = 0;
 
-    totalRow.addCell(
-        "TOTAL GENERAL",
-        "total"
-    );
+    if (data.length > 0) {
 
-    totalRow.addCell("", "total");
+        var last =
+            data[data.length - 1];
 
-    totalRow.addCell("", "total");
-    totalRow.addCell("", "total");
+        finalStockQty =
+            last.stockQty;
 
-    totalRow.addCell(
-        format(totalEntry),
-        "total"
-    );
+        finalStockValue =
+            last.stockValue;
+    }
 
-    totalRow.addCell("", "total");
-    totalRow.addCell("", "total");
+    /*
+    ==============================================
+    LIGNE TOTAL
+    ==============================================
+    */
 
-    totalRow.addCell(
-        format(totalExit),
-        "total"
-    );
+    var finalStockPU = "";
 
-    totalRow.addCell("", "total");
-    totalRow.addCell("", "total");
+for (var i = data.length - 1; i >= 0; i--) {
 
-    totalRow.addCell(
-        format(finalValue),
-        "total"
-    );
+    if (data[i].stockQty > 0) {
+        finalStockPU = data[i].stockPU;
+        break;
+    }
+}
+
+   var totalRow = table.addRow();
+
+totalRow.addCell("TOTAL GENERAL", "total");
+
+totalRow.addCell("", "total");
+totalRow.addCell("", "total");
+
+/* ENTREES */
+
+totalRow.addCell("", "total");
+totalRow.addCell("", "total");
+totalRow.addCell("", "total");     // <- vide
+
+/* SORTIES */
+
+totalRow.addCell("", "total");
+totalRow.addCell("", "total");
+totalRow.addCell("", "total");     // <- vide
+
+/* STOCK */
+
+totalRow.addCell(
+    format(finalStockQty),
+    "total"
+);
+
+totalRow.addCell(
+    format(finalStockPU),
+    "total"
+);
+
+totalRow.addCell(
+    format(finalStockValue),
+    "total"
+);
 }
 
 /*
-========================================================
+==================================================
 RESUME
-========================================================
+==================================================
 */
 
 function addSummary(report, data) {
@@ -511,9 +726,16 @@ function addSummary(report, data) {
     if (data.length <= 0)
         return;
 
-    var last = data[data.length - 1];
+    var last =
+        data[data.length - 1];
 
-    report.addParagraph(" ", "normal");
+    var finalStockQty =
+        last.stockQty;
+
+    var finalStockValue =
+        last.stockValue;
+
+    report.addParagraph(" ");
 
     report.addParagraph(
         "RÉSUMÉ GÉNÉRAL",
@@ -522,166 +744,188 @@ function addSummary(report, data) {
 
     report.addParagraph(
         "Stock Final Quantité : " +
-        format(last.stockQty),
+        format(finalStockQty),
         "summary"
     );
 
     report.addParagraph(
         "Valeur Finale Stock : " +
-        format(last.stockValue),
+        format(finalStockValue) +
+        " FCFA",
         "summary"
     );
 }
 
 /*
-========================================================
-PIED DE PAGE
-========================================================
+==================================================
+FOOTER
+==================================================
 */
 
 function addFooter(report) {
 
-    report.addParagraph(" ", "normal");
+    report.addParagraph(" ");
 
-    report.addParagraph(
-        "Méthode appliquée : " + STOCK_METHOD,
-        "footer"
+    var footer =
+        report.addTable(
+            "footerTable"
+        );
+
+    var row = footer.addRow();
+
+    row.addCell(
+        "ÉTABLI PAR :\n\n\n_____________________",
+        "footerCell"
     );
 
-    report.addParagraph(
-        "Rapport conforme aux normes OHADA",
-        "footer"
+    row.addCell(
+        "VÉRIFIÉ PAR :\n\n\n_____________________",
+        "footerCell"
+    );
+
+    row.addCell(
+        "APPROUVÉ PAR :\n\n\n_____________________",
+        "footerCell"
     );
 }
 
 /*
-========================================================
-FORMATAGE
-========================================================
+==================================================
+FORMAT
+==================================================
 */
 
-function format(value) {
+function format(v) {
 
     return Banana.Converter.toLocaleNumberFormat(
-        Number(value).toFixed(2)
+        Number(v).toFixed(2)
     );
 }
 
 /*
-========================================================
-STYLE SHEET
-========================================================
+==================================================
+STYLE PREMIUM OHADA
+==================================================
 */
 
 function createStyleSheet() {
 
-    var stylesheet = Banana.Report.newStyleSheet();
+    var s = Banana.Report.newStyleSheet();
 
-    /*
-    ================================================
-    TABLEAU PRINCIPAL
-    ================================================
-    */
-
-    stylesheet.addStyle(
-        ".mainTable",
-        "width:100%; font-size:9pt;"
+    s.addStyle(
+        "body",
+        "font-family: Helvetica; font-size:9pt; color:#1f2937;"
     );
 
-    stylesheet.addStyle(
-        ".mainTable td",
-        "border:1px solid black; padding:4px;"
-    );
-
-    stylesheet.addStyle(
-        ".mainTable th",
-        "border:1px solid black;" +
-        "background-color:#d9e1f2;" +
-        "font-weight:bold;" +
-        "text-align:center;" +
-        "padding:4px;"
-    );
-
-    /*
-    ================================================
-    CELLULES
-    ================================================
-    */
-
-    stylesheet.addStyle(
-        ".td",
-        "border:1px solid black;"
-    );
-
-    stylesheet.addStyle(
-        ".tdn",
-        "border:1px solid black; text-align:right;"
-    );
-
-    stylesheet.addStyle(
-        ".total",
-        "border:1px solid black;" +
-        "font-weight:bold;" +
-        "background-color:#eeeeee;"
-    );
-
-    /*
-    ================================================
-    HEADER
-    ================================================
-    */
-
-    stylesheet.addStyle(
+    s.addStyle(
         ".headerTable",
-        "width:100%; border:1px solid black;"
+        "width:100%; border:1px solid #1e3a5f; margin-bottom:10px;"
     );
 
-    stylesheet.addStyle(
+    s.addStyle(
         ".headerTable td",
-        "border:1px solid black; padding:8px;"
+        "border:1px solid #1e3a5f; padding:10px; vertical-align:top;"
     );
 
-    stylesheet.addStyle(
+    s.addStyle(
         ".logo",
-        "font-size:16pt; font-weight:bold;"
+        "font-size:12pt; font-weight:bold; color:#1e3a5f;"
     );
 
-    stylesheet.addStyle(
+    s.addStyle(
         ".title",
-        "font-size:18pt;" +
-        "font-weight:bold;" +
-        "text-align:center;"
+        "font-size:18pt; font-weight:bold; text-align:center; color:#1e3a5f;"
     );
 
-    stylesheet.addStyle(
+    s.addStyle(
         ".info",
-        "font-size:10pt;"
+        "font-size:9pt; color:#374151;"
     );
 
-    /*
-    ================================================
-    RESUME
-    ================================================
-    */
+    s.addStyle(
+        ".infoTable",
+        "width:100%; margin-bottom:12px;"
+    );
 
-    stylesheet.addStyle(
+    s.addStyle(
+        ".infoBox",
+        "border:1px solid #9ca3af; padding:8px; font-weight:bold; background-color:#f9fafb;"
+    );
+
+    s.addStyle(
+        ".mainTable",
+        "width:100%; font-size:8.5pt; border:1px solid #1e3a5f;"
+    );
+
+    s.addStyle(
+        ".mainTable td",
+        "border:1px solid #cbd5e1; padding:5px;"
+    );
+
+    s.addStyle(
+        ".th",
+        "background-color:#0f2d52; color:white; font-weight:bold; text-align:center; padding:7px;"
+    );
+
+    s.addStyle(
+        ".thGroup",
+        "background-color:#0f2d52; color:white; font-weight:bold; text-align:center; padding:7px;"
+    );
+
+    s.addStyle(
+        ".th2",
+        "background-color:#d6a756; color:black; font-weight:bold; text-align:center;"
+    );
+
+    s.addStyle(
+        ".thSpacer",
+        "background-color:#0f2d52; border-top:1px solid #0f2d52; border-left:1px solid #0f2d52; border-right:1px solid #0f2d52; border-bottom:1px solid #d6a756;"
+    );
+
+    s.addStyle(
+        ".td",
+        "background-color:white;"
+    );
+
+    s.addStyle(
+        ".tdIn",
+        "background-color:#f0fdf4;"
+    );
+
+    s.addStyle(
+        ".tdOut",
+        "background-color:#fff7ed;"
+    );
+
+    s.addStyle(
+        ".tdn",
+        "text-align:right;"
+    );
+
+    s.addStyle(
+        ".total",
+        "font-weight:bold; background-color:#e5e7eb; border:1px solid #374151; padding:6px;"
+    );
+
+    s.addStyle(
         ".summaryTitle",
-        "font-size:14pt; font-weight:bold;"
+        "font-size:13pt; font-weight:bold; color:#0f2d52;"
     );
 
-    stylesheet.addStyle(
+    s.addStyle(
         ".summary",
-        "font-size:11pt;"
+        "font-size:10pt; font-weight:bold;"
     );
 
-    stylesheet.addStyle(
-        ".footer",
-        "font-size:9pt; font-style:italic;"
+    s.addStyle(
+        ".footerTable",
+        "width:100%; margin-top:20px;"
     );
 
-    return stylesheet;
-}
-function settings() {
+    s.addStyle(
+        ".footerCell",
+        "border:1px solid #9ca3af; padding:12px; text-align:center; font-weight:bold;"
+    );
 
-    settingsDialog();
+    return s;
 }
