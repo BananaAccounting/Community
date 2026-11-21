@@ -1,6 +1,6 @@
 ﻿// @id = ch.banana.uni.stockohada.cump.endperiod
 // @api = 1.0
-// @pubdate = 2026-05-19
+// @pubdate = 2026-11-21
 // @publisher = Paulin KIKUAKUA MALANGU/KIKSOFT ONLINE ACADEMY
 // @description = 4. Gestion de stock OHADA - CUMP fin de période
 // @description.en = 4. OHADA inventory management - Weighted average end of period
@@ -10,33 +10,341 @@
 // @doctype = *
 
 /*
-========================================================
-KIKSOFT ERP OHADA PRO
-CUMP FIN DE PERIODE
-VERSION STABLE BANANAPLUS
-========================================================
-*/
-
-/*
-========================================================
-PARAMETRES
-========================================================
+==================================================
+FICHE DE STOCK OHADA - CUMP FIN DE PERIODE
+En-tête paramétrable (réglages partagés entre les
+4 méthodes : FIFO, LIFO, CUMP après chaque entrée,
+CUMP fin de période)
+==================================================
 */
 
 var STOCK_METHOD = "CUMP FIN DE PERIODE";
 
-function exec() {
+/* CUMP : CU de sortie vide si 0 ; FIFO/LIFO : toujours affiché */
+var HIDE_ZERO_EXIT_PU = true;
+
+/* Identifiant commun : les réglages sont partagés par toutes les méthodes */
+var SETTINGS_ID = "kiksoft.stock.ohada.settings";
+
+/*
+==================================================
+POINT D'ENTREE
+==================================================
+*/
+
+function exec(inData, options) {
 
     var doc = Banana.document;
 
     if (!doc)
         return;
 
-    var report = createReport(doc);
+    var useLast = options && options.useLastSettings;
 
-    var stylesheet = createStyleSheet();
+    if (!useLast) {
+
+        if (!hasSavedSettings()) {
+
+            /* Première utilisation : on ouvre directement les paramètres */
+            settingsDialog();
+        }
+        else if (askForSettings()) {
+
+            settingsDialog();
+        }
+    }
+
+    var settings = loadSettings();
+
+    var report = createReport(doc, settings);
+
+    var stylesheet = createStyleSheet(settings);
 
     Banana.Report.preview(report, stylesheet);
+}
+
+function askForSettings() {
+
+    try {
+        if (Banana.Ui && typeof Banana.Ui.showQuestion === "function") {
+
+            return Banana.Ui.showQuestion(
+                "Fiche de stock",
+                "Voulez-vous modifier les paramètres (entreprise, article, monnaie...) avant l'aperçu ?"
+            ) ? true : false;
+        }
+    } catch (e) {
+    }
+
+    return false;
+}
+
+/*
+==================================================
+PARAMETRES : VALEURS PAR DEFAUT
+==================================================
+*/
+
+function docInfo(section, id) {
+
+    try {
+        var v = Banana.document.info(section, id);
+        return v ? String(v) : "";
+    } catch (e) {
+        return "";
+    }
+}
+
+function defaultSettings() {
+
+    var company = docInfo("Base", "Company");
+    var headerLeft = docInfo("Base", "HeaderLeft");
+
+    var address = docInfo("Address", "Address1");
+
+    if (docInfo("Address", "Address2"))
+        address += (address ? "\n" : "") + docInfo("Address", "Address2");
+
+    if (docInfo("Address", "Locality"))
+        address += (address ? "\n" : "") + docInfo("Address", "Locality");
+
+    var opening = docInfo("AccountingDataBase", "OpeningDate");
+    var fiscal = opening ? "EXERCICE " + opening.substring(0, 4) : "";
+
+    return {
+
+        /* En-tête */
+        companyName: headerLeft || company || "",
+        address: address,
+        phone: docInfo("Address", "Phone"),
+        email: docInfo("Address", "Email"),
+
+        docTitle: "FICHE DE STOCK",
+        docSubtitle: "CONFORME AUX NORMES OHADA",
+        showMethod: true,
+
+        fiscalLabel: fiscal,
+        extraRight: docInfo("Base", "HeaderRight"),
+        showPrintDate: true,
+
+        /* Article */
+        articleName: "",
+        articleCode: "",
+        unit: "",
+        warehouse: "",
+
+        /* Monnaie : vide par défaut */
+        currency: "",
+        decimals: "2",
+
+        /* Pied de page */
+        showSignatures: true,
+        sign1: "ÉTABLI PAR :",
+        sign2: "VÉRIFIÉ PAR :",
+        sign3: "APPROUVÉ PAR :",
+
+        /* Couleurs */
+        mainColor: "#0f2d52",
+        accentColor: "#d6a756"
+    };
+}
+
+/*
+==================================================
+PARAMETRES : LECTURE / ECRITURE
+==================================================
+*/
+
+function readSavedText() {
+
+    var txt = "";
+
+    try {
+        txt = Banana.document.getScriptSettings(SETTINGS_ID);
+    } catch (e) {
+        txt = "";
+    }
+
+    /* Anciennes versions : réglages propres à l'extension */
+    if (!txt) {
+        try {
+            txt = Banana.document.getScriptSettings();
+        } catch (e2) {
+            txt = "";
+        }
+    }
+
+    return txt ? String(txt) : "";
+}
+
+function hasSavedSettings() {
+
+    return readSavedText().length > 0;
+}
+
+function loadSettings() {
+
+    var s = defaultSettings();
+
+    try {
+        var saved = readSavedText();
+
+        if (saved.length > 0) {
+
+            var obj = JSON.parse(saved);
+
+            for (var k in obj) {
+                if (s.hasOwnProperty(k))
+                    s[k] = obj[k];
+            }
+        }
+    } catch (e) {
+        /* réglages illisibles : valeurs par défaut */
+    }
+
+    return s;
+}
+
+function saveSettings(s) {
+
+    var txt = JSON.stringify(s);
+
+    try {
+        Banana.document.setScriptSettings(SETTINGS_ID, txt);
+    } catch (e) {
+        Banana.document.setScriptSettings(txt);
+    }
+}
+
+/*
+==================================================
+FENETRE DES PARAMETRES
+(bouton Paramètres de Gestion des extensions,
+et de l'aperçu selon la version de Banana)
+==================================================
+*/
+
+function settingsDialog() {
+
+    var settings = loadSettings();
+
+    var converted = convertParam(settings);
+
+    if (!Banana.Ui.openPropertyEditor("Paramètres de la fiche de stock", converted, "dlgSettings"))
+        return null;
+
+    for (var i = 0; i < converted.data.length; i++)
+        converted.data[i].readValue();
+
+    saveSettings(settings);
+
+    return true;
+}
+
+function addGroup(data, name, title) {
+
+    data.push({
+        name: name,
+        title: title,
+        type: "string",
+        value: "",
+        editable: false,
+        readValue: function () { }
+    });
+}
+
+function addParam(data, s, key, title, type, parent, tooltip, items) {
+
+    var def = defaultSettings()[key];
+
+    var p = {};
+
+    p.name = key;
+    p.title = title;
+    p.type = type;
+    p.value = (s[key] !== undefined && s[key] !== null) ? s[key] : def;
+    p.defaultvalue = def;
+    p.parentObject = parent;
+
+    if (tooltip)
+        p.tooltip = tooltip;
+
+    if (items)
+        p.items = items;
+
+    p.readValue = function () {
+        s[key] = this.value;
+    };
+
+    data.push(p);
+}
+
+function convertParam(s) {
+
+    var c = {};
+
+    c.version = "1.0";
+    c.data = [];
+
+    var d = c.data;
+
+    /* ---------- ENTETE ---------- */
+
+    addGroup(d, "grpHeader", "En-tête du document");
+
+    addParam(d, s, "companyName", "Nom de l'entreprise", "string", "grpHeader",
+        "Affiché dans le cadre de gauche");
+    addParam(d, s, "address", "Adresse", "multilinestring", "grpHeader");
+    addParam(d, s, "phone", "Téléphone", "string", "grpHeader");
+    addParam(d, s, "email", "Email", "string", "grpHeader");
+
+    addParam(d, s, "docTitle", "Titre du document", "string", "grpHeader");
+    addParam(d, s, "docSubtitle", "Sous-titre", "string", "grpHeader",
+        "Laisser vide pour ne rien afficher");
+    addParam(d, s, "showMethod", "Afficher la méthode de valorisation", "bool", "grpHeader");
+
+    addParam(d, s, "fiscalLabel", "Exercice (cadre de droite)", "string", "grpHeader",
+        "Ex. : EXERCICE 2026");
+    addParam(d, s, "extraRight", "Complément (cadre de droite)", "string", "grpHeader",
+        "Ex. : nom du dépôt, du projet...");
+    addParam(d, s, "showPrintDate", "Afficher la date d'impression", "bool", "grpHeader");
+
+    /* ---------- ARTICLE ---------- */
+
+    addGroup(d, "grpArticle", "Article");
+
+    addParam(d, s, "articleName", "Désignation de l'article", "string", "grpArticle",
+        "Laisser vide pour écrire à la main sur la fiche imprimée");
+    addParam(d, s, "articleCode", "Code article", "string", "grpArticle");
+    addParam(d, s, "unit", "Unité", "string", "grpArticle");
+    addParam(d, s, "warehouse", "Magasin", "string", "grpArticle");
+
+    /* ---------- MONNAIE ---------- */
+
+    addGroup(d, "grpCurrency", "Monnaie et chiffres");
+
+    addParam(d, s, "currency", "Monnaie", "string", "grpCurrency",
+        "Ex. : FCFA, USD, CDF. Laisser vide pour ne rien afficher");
+    addParam(d, s, "decimals", "Nombre de décimales", "combobox", "grpCurrency",
+        "Décimales affichées dans les montants", ["0", "1", "2"]);
+
+    /* ---------- PIED DE PAGE ---------- */
+
+    addGroup(d, "grpFooter", "Pied de page");
+
+    addParam(d, s, "showSignatures", "Afficher le cadre des signatures", "bool", "grpFooter");
+    addParam(d, s, "sign1", "Libellé signature 1", "string", "grpFooter");
+    addParam(d, s, "sign2", "Libellé signature 2", "string", "grpFooter");
+    addParam(d, s, "sign3", "Libellé signature 3", "string", "grpFooter");
+
+    /* ---------- COULEURS ---------- */
+
+    addGroup(d, "grpColors", "Couleurs");
+
+    addParam(d, s, "mainColor", "Couleur principale", "color", "grpColors");
+    addParam(d, s, "accentColor", "Couleur d'accent", "color", "grpColors");
+
+    return c;
 }
 
 /*
@@ -45,261 +353,118 @@ REPORT
 ==================================================
 */
 
-function createReport(doc) {
+function createReport(doc, settings) {
 
-    var report = Banana.Report.newReport(
-        "KIKSOFT ERP OHADA PRO"
-    );
+    var report = Banana.Report.newReport("KIKSOFT ERP OHADA PRO");
 
-    addHeader(report);
+    addHeader(report, settings);
 
     var data = calculateData(doc);
 
-    addMainTable(report, data);
+    addMainTable(report, data, settings);
 
-    addSummary(report, data);
+    addSummary(report, data, settings);
 
-    addFooter(report);
+    addFooter(report, settings);
 
     return report;
 }
 
 /*
 ==================================================
-HEADER PREMIUM OHADA
+EN-TETE
 ==================================================
 */
 
-function addHeader(report) {
+function blank(value, line) {
 
-    var company =
-        Banana.document.info(
-            "Base",
-            "Company"
-        );
+    return (value && String(value).length > 0) ? value : line;
+}
 
-    var headerLeft =
-        Banana.document.info(
-            "Base",
-            "HeaderLeft"
-        );
+function addHeader(report, s) {
 
-    var headerRight =
-        Banana.document.info(
-            "Base",
-            "HeaderRight"
-        );
-
-    var courtesy =
-        Banana.document.info(
-            "Address",
-            "Courtesy"
-        );
-
-    var address1 =
-        Banana.document.info(
-            "Address",
-            "Address1"
-        );
-
-    var address2 =
-        Banana.document.info(
-            "Address",
-            "Address2"
-        );
-
-    var city =
-        Banana.document.info(
-            "Address",
-            "Locality"
-        );
-
-    var region =
-        Banana.document.info(
-            "Address",
-            "Region"
-        );
-
-    var country =
-        Banana.document.info(
-            "Address",
-            "Country"
-        );
-
-    var phone =
-        Banana.document.info(
-            "Address",
-            "Phone"
-        );
-
-    var email =
-        Banana.document.info(
-            "Address",
-            "Email"
-        );
-
-    var web =
-        Banana.document.info(
-            "Address",
-            "Web"
-        );
-
-    if (!company)
-        company = "KIKSOFT ERP";
-
-    if (!headerLeft)
-        headerLeft = company;
-
-    if (!headerRight)
-        headerRight = "MAGASIN / DEPOT";
-
-    /*
-    ==========================================
-    HEADER TABLE
-    ==========================================
-    */
-
-    var header = report.addTable(
-        "headerTable"
-    );
+    var header = report.addTable("headerTable");
 
     var row = header.addRow();
 
-    /*
-    ==========================================
-    GAUCHE
-    ==========================================
-    */
+    /* ---------- GAUCHE ---------- */
 
-    var leftText = "";
+    var leftText = s.companyName || "";
 
-    leftText += headerLeft;
+    if (s.address)
+        leftText += "\n" + s.address;
 
-    if (courtesy)
-        leftText += "\n" + courtesy;
+    if (s.phone)
+        leftText += "\nTél : " + s.phone;
 
-    if (address1)
-        leftText += "\n" + address1;
+    if (s.email)
+        leftText += "\nEmail : " + s.email;
 
-    if (address2)
-        leftText += "\n" + address2;
+    row.addCell(leftText, "logo");
 
-    if (phone)
-        leftText += "\nTél : " + phone;
+    /* ---------- CENTRE ---------- */
 
-    if (email)
-        leftText += "\nEmail : " + email;
+    var center = s.docTitle || "";
 
-    row.addCell(
-        leftText,
-        "logo"
-    );
+    if (s.docSubtitle)
+        center += "\n" + s.docSubtitle;
 
-    /*
-    ==========================================
-    CENTRE
-    ==========================================
-    */
+    if (s.showMethod)
+        center += "\nMéthode : " + STOCK_METHOD;
 
-    row.addCell(
+    if (s.currency)
+        center += "\nDevise : " + s.currency;
 
-        "FICHE DE STOCK\n" +
+    row.addCell(center, "title");
 
-        "CONFORME AUX NORMES OHADA\n" +
+    /* ---------- DROITE ---------- */
 
-        "Méthode : " + STOCK_METHOD +
+    var lines = [];
 
-        "\nDevise : FCFA",
+    if (s.fiscalLabel)
+        lines.push(s.fiscalLabel);
 
-        "title"
-    );
+    if (s.extraRight)
+        lines.push(s.extraRight);
 
-    /*
-    ==========================================
-    DROITE
-    ==========================================
-    */
+    if (s.showPrintDate)
+        lines.push("Date Impression : " +
+            Banana.Converter.toLocaleDateFormat(new Date()));
 
-    var rightText = "";
+    row.addCell(lines.join("\n"), "info");
 
-    rightText += headerRight;
-
-    if (city)
-        rightText += "\n" + city;
-
-    if (region)
-        rightText += "\n" + region;
-
-    if (country)
-        rightText += "\n" + country;
-
-    if (web)
-        rightText += "\n" + web;
-
-    rightText +=
-        "\nDate Impression : " +
-        Banana.Converter.toLocaleDateFormat(
-            new Date()
-        );
-
-    row.addCell(
-        rightText,
-        "info"
-    );
-
-    /*
-    ==========================================
-    INFOS ARTICLE
-    ==========================================
-    */
+    /* ---------- INFOS ARTICLE ---------- */
 
     report.addParagraph(" ");
 
-    var infoTable =
-        report.addTable(
-            "infoTable"
-        );
+    var infoTable = report.addTable("infoTable");
 
     var r1 = infoTable.addRow();
 
-    r1.addCell(
-        "DESIGNATION ARTICLE : ______________________________",
-        "infoBox"
-    );
+    r1.addCell("DESIGNATION ARTICLE : " +
+        blank(s.articleName, "______________________________"), "infoBox");
 
-    r1.addCell(
-        "UNITE : __________________",
-        "infoBox"
-    );
+    r1.addCell("UNITE : " +
+        blank(s.unit, "__________________"), "infoBox");
 
-    r1.addCell(
-        "MAGASIN : __________________",
-        "infoBox"
-    );
+    r1.addCell("MAGASIN : " +
+        blank(s.warehouse, "__________________"), "infoBox");
 
     var r2 = infoTable.addRow();
 
-    r2.addCell(
-        "CODE ARTICLE : ______________________________",
-        "infoBox"
-    );
+    r2.addCell("CODE ARTICLE : " +
+        blank(s.articleCode, "______________________________"), "infoBox");
 
-    r2.addCell(
-        "METHODE : " + STOCK_METHOD,
-        "infoBox"
-    );
+    r2.addCell("METHODE : " + STOCK_METHOD, "infoBox");
 
-    r2.addCell(
-        "PAGE : ____ / ____",
-        "infoBox"
-    );
+    r2.addCell("PAGE : ____ / ____", "infoBox");
 
     report.addParagraph(" ");
 }
 
 /*
 ==================================================
-CALCUL CUMP FIN DE PERIODE
+CALCUL (propre à la méthode)
 ==================================================
 */
 
@@ -533,19 +698,38 @@ function calculateData(doc) {
 
 /*
 ==================================================
-TABLEAU PREMIUM OHADA
+STOCK FINAL (propre à la méthode)
 ==================================================
 */
 
-function addMainTable(report, data) {
+function finalFigures(data) {
+
+    var f = { qty: 0, value: 0, pu: "" };
+
+    if (data.length > 0) {
+        f.qty = data[data.length - 1].stockQty;
+        f.value = data[data.length - 1].stockValue;
+    }
+
+    for (var i = data.length - 1; i >= 0; i--) {
+        if (data[i].stockQty > 0) {
+            f.pu = data[i].stockPU;
+            break;
+        }
+    }
+
+    return f;
+}
+
+/*
+==================================================
+TABLEAU
+==================================================
+*/
+
+function addMainTable(report, data, s) {
 
     var table = report.addTable("mainTable");
-
-    /*
-    ==============================================
-    ENTETE PRINCIPALE
-    ==============================================
-    */
 
     var row1 = table.addRow();
 
@@ -556,12 +740,6 @@ function addMainTable(report, data) {
     row1.addCell("ENTREES", "thGroup", 3);
     row1.addCell("SORTIES", "thGroup", 3);
     row1.addCell("STOCK", "thGroup", 3);
-
-    /*
-    ==============================================
-    SOUS ENTETE
-    ==============================================
-    */
 
     var row2 = table.addRow();
 
@@ -581,15 +759,6 @@ function addMainTable(report, data) {
     row2.addCell("CU", "th2");
     row2.addCell("Valeur", "th2");
 
-    /*
-    ==============================================
-    DONNEES
-    ==============================================
-    */
-
-    var totalEntry = 0;
-    var totalExit = 0;
-
     for (var i = 0; i < data.length; i++) {
 
         var d = data[i];
@@ -608,111 +777,38 @@ function addMainTable(report, data) {
         r.addCell(d.label, rowStyle);
         r.addCell(d.lot, rowStyle);
 
-        r.addCell(format(d.entryQty), "tdn");
-        r.addCell(format(d.entryPU), "tdn");
-        r.addCell(format(d.entryTotal), "tdn");
+        r.addCell(format(d.entryQty, s), "tdn");
+        r.addCell(format(d.entryPU, s), "tdn");
+        r.addCell(format(d.entryTotal, s), "tdn");
 
-        r.addCell(format(d.exitQty), "tdn");
+        r.addCell(format(d.exitQty, s), "tdn");
+        r.addCell((HIDE_ZERO_EXIT_PU && !(d.exitPU > 0)) ? "" : format(d.exitPU, s), "tdn");
+        r.addCell(format(d.exitTotal, s), "tdn");
 
-        r.addCell(
-            d.exitPU > 0
-            ? format(d.exitPU)
-            : "",
-            "tdn"
-        );
-
-        r.addCell(format(d.exitTotal), "tdn");
-
-        r.addCell(format(d.stockQty), "tdn");
-
-        r.addCell(
-            d.stockPU > 0
-            ? format(d.stockPU)
-            : "",
-            "tdn"
-        );
-
-        r.addCell(
-            format(d.stockValue),
-            "tdn"
-        );
-
-        totalEntry += d.entryTotal;
-        totalExit += d.exitTotal;
+        r.addCell(format(d.stockQty, s), "tdn");
+        r.addCell(d.stockPU > 0 ? format(d.stockPU, s) : "", "tdn");
+        r.addCell(format(d.stockValue, s), "tdn");
     }
 
-    /*
-    ==============================================
-    STOCK FINAL
-    ==============================================
-    */
+    var f = finalFigures(data);
 
-    var finalStockQty = 0;
-    var finalStockValue = 0;
+    var totalRow = table.addRow();
 
-    if (data.length > 0) {
+    totalRow.addCell("TOTAL GENERAL", "total");
+    totalRow.addCell("", "total");
+    totalRow.addCell("", "total");
 
-        var last =
-            data[data.length - 1];
+    totalRow.addCell("", "total");
+    totalRow.addCell("", "total");
+    totalRow.addCell("", "total");
 
-        finalStockQty =
-            last.stockQty;
+    totalRow.addCell("", "total");
+    totalRow.addCell("", "total");
+    totalRow.addCell("", "total");
 
-        finalStockValue =
-            last.stockValue;
-    }
-
-    /*
-    ==============================================
-    LIGNE TOTAL
-    ==============================================
-    */
-
-    var finalStockPU = "";
-
-for (var i = data.length - 1; i >= 0; i--) {
-
-    if (data[i].stockQty > 0) {
-        finalStockPU = data[i].stockPU;
-        break;
-    }
-}
-
-   var totalRow = table.addRow();
-
-totalRow.addCell("TOTAL GENERAL", "total");
-
-totalRow.addCell("", "total");
-totalRow.addCell("", "total");
-
-/* ENTREES */
-
-totalRow.addCell("", "total");
-totalRow.addCell("", "total");
-totalRow.addCell("", "total");     // <- vide
-
-/* SORTIES */
-
-totalRow.addCell("", "total");
-totalRow.addCell("", "total");
-totalRow.addCell("", "total");     // <- vide
-
-/* STOCK */
-
-totalRow.addCell(
-    format(finalStockQty),
-    "total"
-);
-
-totalRow.addCell(
-    format(finalStockPU),
-    "total"
-);
-
-totalRow.addCell(
-    format(finalStockValue),
-    "total"
-);
+    totalRow.addCell(format(f.qty, s), "total");
+    totalRow.addCell(f.pu === "" ? "" : format(f.pu, s), "total");
+    totalRow.addCell(format(f.value, s), "total");
 }
 
 /*
@@ -721,72 +817,51 @@ RESUME
 ==================================================
 */
 
-function addSummary(report, data) {
+function addSummary(report, data, s) {
 
     if (data.length <= 0)
         return;
 
-    var last =
-        data[data.length - 1];
-
-    var finalStockQty =
-        last.stockQty;
-
-    var finalStockValue =
-        last.stockValue;
+    var f = finalFigures(data);
 
     report.addParagraph(" ");
 
-    report.addParagraph(
-        "RÉSUMÉ GÉNÉRAL",
-        "summaryTitle"
-    );
+    report.addParagraph("RÉSUMÉ GÉNÉRAL", "summaryTitle");
 
     report.addParagraph(
-        "Stock Final Quantité : " +
-        format(finalStockQty),
-        "summary"
-    );
+        "Stock Final Quantité : " + format(f.qty, s),
+        "summary");
 
-    report.addParagraph(
-        "Valeur Finale Stock : " +
-        format(finalStockValue) +
-        " FCFA",
-        "summary"
-    );
+    var valueLine = "Valeur Finale Stock : " + format(f.value, s);
+
+    if (s.currency)
+        valueLine += " " + s.currency;
+
+    report.addParagraph(valueLine, "summary");
 }
 
 /*
 ==================================================
-FOOTER
+PIED DE PAGE
 ==================================================
 */
 
-function addFooter(report) {
+function addFooter(report, s) {
+
+    if (!s.showSignatures)
+        return;
 
     report.addParagraph(" ");
 
-    var footer =
-        report.addTable(
-            "footerTable"
-        );
+    var footer = report.addTable("footerTable");
 
     var row = footer.addRow();
 
-    row.addCell(
-        "ÉTABLI PAR :\n\n\n_____________________",
-        "footerCell"
-    );
+    var line = "\n\n\n_____________________";
 
-    row.addCell(
-        "VÉRIFIÉ PAR :\n\n\n_____________________",
-        "footerCell"
-    );
-
-    row.addCell(
-        "APPROUVÉ PAR :\n\n\n_____________________",
-        "footerCell"
-    );
+    row.addCell((s.sign1 || "") + line, "footerCell");
+    row.addCell((s.sign2 || "") + line, "footerCell");
+    row.addCell((s.sign3 || "") + line, "footerCell");
 }
 
 /*
@@ -795,137 +870,111 @@ FORMAT
 ==================================================
 */
 
-function format(v) {
+function decimalsOf(s) {
+
+    var n = parseInt(s.decimals, 10);
+
+    if (isNaN(n) || n < 0)
+        n = 2;
+
+    if (n > 4)
+        n = 4;
+
+    return n;
+}
+
+function format(v, s) {
+
+    var n = decimalsOf(s);
 
     return Banana.Converter.toLocaleNumberFormat(
-        Number(v).toFixed(2)
+        Number(v).toFixed(n), n, true
     );
 }
 
 /*
 ==================================================
-STYLE PREMIUM OHADA
+STYLE
 ==================================================
 */
 
-function createStyleSheet() {
+function validColor(c, fallback) {
+
+    return (c && /^#[0-9a-fA-F]{3,8}$/.test(String(c).trim()))
+        ? String(c).trim()
+        : fallback;
+}
+
+function createStyleSheet(settings) {
+
+    var main = validColor(settings.mainColor, "#0f2d52");
+    var accent = validColor(settings.accentColor, "#d6a756");
 
     var s = Banana.Report.newStyleSheet();
 
-    s.addStyle(
-        "body",
-        "font-family: Helvetica; font-size:9pt; color:#1f2937;"
-    );
+    s.addStyle("body",
+        "font-family: Helvetica; font-size:9pt; color:#1f2937;");
 
-    s.addStyle(
-        ".headerTable",
-        "width:100%; border:1px solid #1e3a5f; margin-bottom:10px;"
-    );
+    s.addStyle(".headerTable",
+        "width:100%; border:1px solid " + main + "; margin-bottom:10px;");
 
-    s.addStyle(
-        ".headerTable td",
-        "border:1px solid #1e3a5f; padding:10px; vertical-align:top;"
-    );
+    s.addStyle(".headerTable td",
+        "border:1px solid " + main + "; padding:10px; vertical-align:top;");
 
-    s.addStyle(
-        ".logo",
-        "font-size:12pt; font-weight:bold; color:#1e3a5f;"
-    );
+    s.addStyle(".logo",
+        "font-size:12pt; font-weight:bold; color:" + main + ";");
 
-    s.addStyle(
-        ".title",
-        "font-size:18pt; font-weight:bold; text-align:center; color:#1e3a5f;"
-    );
+    s.addStyle(".title",
+        "font-size:18pt; font-weight:bold; text-align:center; color:" + main + ";");
 
-    s.addStyle(
-        ".info",
-        "font-size:9pt; color:#374151;"
-    );
+    s.addStyle(".info",
+        "font-size:9pt; color:#374151;");
 
-    s.addStyle(
-        ".infoTable",
-        "width:100%; margin-bottom:12px;"
-    );
+    s.addStyle(".infoTable",
+        "width:100%; margin-bottom:12px;");
 
-    s.addStyle(
-        ".infoBox",
-        "border:1px solid #9ca3af; padding:8px; font-weight:bold; background-color:#f9fafb;"
-    );
+    s.addStyle(".infoBox",
+        "border:1px solid #9ca3af; padding:8px; font-weight:bold; background-color:#f9fafb;");
 
-    s.addStyle(
-        ".mainTable",
-        "width:100%; font-size:8.5pt; border:1px solid #1e3a5f;"
-    );
+    s.addStyle(".mainTable",
+        "width:100%; font-size:8.5pt; border:1px solid " + main + ";");
 
-    s.addStyle(
-        ".mainTable td",
-        "border:1px solid #cbd5e1; padding:5px;"
-    );
+    s.addStyle(".mainTable td",
+        "border:1px solid #cbd5e1; padding:5px;");
 
-    s.addStyle(
-        ".th",
-        "background-color:#0f2d52; color:white; font-weight:bold; text-align:center; padding:7px;"
-    );
+    s.addStyle(".th",
+        "background-color:" + main + "; color:white; font-weight:bold; text-align:center; padding:7px;");
 
-    s.addStyle(
-        ".thGroup",
-        "background-color:#0f2d52; color:white; font-weight:bold; text-align:center; padding:7px;"
-    );
+    s.addStyle(".thGroup",
+        "background-color:" + main + "; color:white; font-weight:bold; text-align:center; padding:7px;");
 
-    s.addStyle(
-        ".th2",
-        "background-color:#d6a756; color:black; font-weight:bold; text-align:center;"
-    );
+    s.addStyle(".th2",
+        "background-color:" + accent + "; color:black; font-weight:bold; text-align:center;");
 
-    s.addStyle(
-        ".thSpacer",
-        "background-color:#0f2d52; border-top:1px solid #0f2d52; border-left:1px solid #0f2d52; border-right:1px solid #0f2d52; border-bottom:1px solid #d6a756;"
-    );
+    s.addStyle(".thSpacer",
+        "background-color:" + main + "; border-top:1px solid " + main +
+        "; border-left:1px solid " + main + "; border-right:1px solid " + main +
+        "; border-bottom:1px solid " + accent + ";");
 
-    s.addStyle(
-        ".td",
-        "background-color:white;"
-    );
+    s.addStyle(".td", "background-color:white;");
+    s.addStyle(".tdIn", "background-color:#f0fdf4;");
+    s.addStyle(".tdOut", "background-color:#fff7ed;");
+    s.addStyle(".tdn", "text-align:right;");
 
-    s.addStyle(
-        ".tdIn",
-        "background-color:#f0fdf4;"
-    );
+    s.addStyle(".total",
+        "font-weight:bold; background-color:#e5e7eb; border:1px solid #374151; padding:6px;");
 
-    s.addStyle(
-        ".tdOut",
-        "background-color:#fff7ed;"
-    );
+    s.addStyle(".summaryTitle",
+        "font-size:13pt; font-weight:bold; color:" + main + ";");
 
-    s.addStyle(
-        ".tdn",
-        "text-align:right;"
-    );
+    s.addStyle(".summary",
+        "font-size:10pt; font-weight:bold;");
 
-    s.addStyle(
-        ".total",
-        "font-weight:bold; background-color:#e5e7eb; border:1px solid #374151; padding:6px;"
-    );
+    s.addStyle(".footerTable",
+        "width:100%; margin-top:20px;");
 
-    s.addStyle(
-        ".summaryTitle",
-        "font-size:13pt; font-weight:bold; color:#0f2d52;"
-    );
-
-    s.addStyle(
-        ".summary",
-        "font-size:10pt; font-weight:bold;"
-    );
-
-    s.addStyle(
-        ".footerTable",
-        "width:100%; margin-top:20px;"
-    );
-
-    s.addStyle(
-        ".footerCell",
-        "border:1px solid #9ca3af; padding:12px; text-align:center; font-weight:bold;"
-    );
+    s.addStyle(".footerCell",
+        "border:1px solid #9ca3af; padding:12px; text-align:center; font-weight:bold;");
 
     return s;
 }
